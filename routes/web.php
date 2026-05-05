@@ -1,7 +1,9 @@
 <?php
 
-use App\Http\Controllers\BookingController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\PaymentController;
+use Illuminate\Support\Facades\Auth;
 
 /*
 |--------------------------------------------------------------------------
@@ -9,23 +11,20 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// 1. توجيه الرابط الرئيسي للموقع إلى قائمة الحجوزات مباشرة
+// 1. مسارات نظام الدخول والخروج (تأكد من وجود هذا السطر)
+Auth::routes();
+
+// 2. الصفحة الرئيسية: تحول المستخدم تلقائياً لجدول الحجوزات
 Route::get('/', function () {
     return redirect()->route('bookings.index');
 });
 
-// 2. حل مشكلة (Route dashboard not defined) 
-// هذا السطر يخبر لارافيل أنه في حال طلب النظام صفحة الـ dashboard، قم بتحويله فوراً إلى الحجوزات
-Route::get('/dashboard', function () {
-    return redirect()->route('bookings.index');
-})->name('dashboard');
-
-// 3. روابط نظام الحجوزات (عرض، إضافة، حفظ، حذف)
-// تأكد أن BookingController موجود في مساره الصحيح
-Route::resource('bookings', BookingController::class);
-
-// 4. روابط المصادقة (إذا كنت تستخدم Breeze أو نظام تسجيل دخول)
-// هذا السطر يترك للملفات التلقائية إدارة تسجيل الدخول
-if (file_exists(__DIR__.'/auth.php')) {
-    require __DIR__.'/auth.php';
-}
+// 3. مسارات الحجوزات (المحمية: فقط للمسجلين)
+Route::middleware(['auth'])->group(function () {
+    Route::resource('bookings', BookingController::class);
+    
+    // مسارات الدفع
+    Route::get('/payment/checkout/{id}', [PaymentController::class, 'checkout'])->name('payment.checkout');
+    Route::get('/payment/success/{id}', [PaymentController::class, 'success'])->name('payment.success');
+    Route::get('/payment/cancel', [PaymentController::class, 'cancel'])->name('payment.cancel');
+});

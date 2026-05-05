@@ -8,17 +8,22 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * تنفيذ عملية إنشاء الجدول في قاعدة البيانات
      */
     public function up(): void
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->string('name');      // اسم العميل
+            $table->string('email');     // بريد العميل
+            $table->date('date');        // تاريخ الحجز
+            $table->timestamps();        // توقيت الإنشاء والتحديث تلقائياً
         });
     }
 
     /**
      * Reverse the migrations.
+     * التراجع عن العملية وحذف الجدول
      */
     public function down(): void
     {

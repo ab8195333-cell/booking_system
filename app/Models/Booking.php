@@ -10,12 +10,29 @@ class Booking extends Model
     use HasFactory;
 
     /**
-     * الحقول المسموح بتعبئتها (لحماية البيانات)
-     * تأكد من كتابتها بنفس الحروف الموجودة في قاعدة البيانات
+     * الجدول المرتبط بالموديل (اختياري إذا كان الاسم مطابق للمعايير)
+     */
+    protected $table = 'bookings';
+
+    /**
+     * الحقول القابلة للتعبئة (Fillable)
+     * ملاحظة: أضفنا حقول الدفع لكي يسمح Laravel بحفظ البيانات فيها
      */
     protected $fillable = [
         'name', 
         'email', 
-        'booking_date'
+        'date', 
+        'payment_status', 
+        'stripe_payment_id', 
+        'amount'
+    ];
+
+    /**
+     * تحويل أنواع البيانات (Casting)
+     * يساعد في التعامل مع المبلغ كأرقام عشرية وحالة الدفع
+     */
+    protected $casts = [
+        'date' => 'datetime',
+        'amount' => 'decimal:2',
     ];
 }

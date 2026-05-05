@@ -2,31 +2,56 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
+// استدعاء المكتبات اللازمة
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use App\Models\Booking; // استدعاء موديل الحجوزات للربط
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    /**
+     * تفعيل الميزات الإضافية للمستخدم
+     * HasApiTokens: للتوثيق عبر API (Sanctum)
+     * HasFactory: لإنشاء بيانات وهمية للتجربة
+     * Notifiable: لإرسال الإشعارات (مثل الإيميلات)
+     */
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * الحقول التي يسمح للنظام بتعبئتها تلقائياً
      */
-    protected function casts(): array
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    /**
+     * الحقول التي يجب إخفاؤها عند تحويل البيانات لـ JSON
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * تحديد نوع البيانات لبعض الحقول
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    /**
+     * ---------------------------------------------------------
+     * علاقة المستخدم بالحجوزات (One-to-Many)
+     * ---------------------------------------------------------
+     * تسمح بجلب حجوزات المستخدم عبر: $user->bookings
+     */
+    public function bookings()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Booking::class);
     }
 }
