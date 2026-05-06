@@ -2,34 +2,29 @@
 
 namespace App\Models;
 
-// استدعاء المكتبات اللازمة
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Models\Booking; // استدعاء موديل الحجوزات للربط
 
 class User extends Authenticatable
 {
-    /**
-     * تفعيل الميزات الإضافية للمستخدم
-     * HasApiTokens: للتوثيق عبر API (Sanctum)
-     * HasFactory: لإنشاء بيانات وهمية للتجربة
-     * Notifiable: لإرسال الإشعارات (مثل الإيميلات)
-     */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * الحقول التي يسمح للنظام بتعبئتها تلقائياً
+     * الحقول القابلة للتعبئة (Mass Assignment)
+     * تأكدنا من إضافة 'role' لكي يتعرف النظام على صلاحياتك
      */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'role', 
     ];
 
     /**
-     * الحقول التي يجب إخفاؤها عند تحويل البيانات لـ JSON
+     * الحقول التي يجب إخفاؤها عند عرض البيانات
      */
     protected $hidden = [
         'password',
@@ -37,7 +32,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * تحديد نوع البيانات لبعض الحقول
+     * تحويل أنواع البيانات (Casting)
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -45,10 +40,8 @@ class User extends Authenticatable
     ];
 
     /**
-     * ---------------------------------------------------------
-     * علاقة المستخدم بالحجوزات (One-to-Many)
-     * ---------------------------------------------------------
-     * تسمح بجلب حجوزات المستخدم عبر: $user->bookings
+     * علاقة المستخدم مع الحجوزات
+     * المستخدم الواحد لديه العديد من الحجوزات
      */
     public function bookings()
     {

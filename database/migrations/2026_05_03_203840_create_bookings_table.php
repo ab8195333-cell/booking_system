@@ -7,23 +7,34 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
-     * تنفيذ عملية إنشاء الجدول في قاعدة البيانات
+     * تشغيل التهجير لبناء الجدول
      */
     public function up(): void
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
-            $table->string('name');      // اسم العميل
-            $table->string('email');     // بريد العميل
-            $table->date('date');        // تاريخ الحجز
-            $table->timestamps();        // توقيت الإنشاء والتحديث تلقائياً
+            
+            // اسم العميل
+            $table->string('customer_name'); 
+            
+            // المبلغ مع جعل 50.00 قيمة افتراضية كما طلبت
+            $table->decimal('amount', 8, 2)->default(50.00); 
+            
+            // حالة الحجز الافتراضية
+            $table->string('status')->default('pending');
+            
+            // ربط الحجز بالمستخدم
+            $table->unsignedBigInteger('user_id');
+            
+            $table->timestamps();
+
+            // إضافة العلاقة مع جدول المستخدمين
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 
     /**
-     * Reverse the migrations.
-     * التراجع عن العملية وحذف الجدول
+     * تراجع عن التهجير (حذف الجدول)
      */
     public function down(): void
     {

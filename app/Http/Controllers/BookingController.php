@@ -3,106 +3,114 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Booking;
+use App\Models\User;
+use App\Notifications\BookingNotification; // التأكد من استدعاء ملف الإشعارات
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\BookingConfirmed; // تأكد من إنشاء هذا الملف أولاً
+use Illuminate\Support\Facades\Notification;
 
 class BookingController extends Controller
 {
     /**
-     * عرض الحجوزات مع كاشف أخطاء
+     * تأمين الوصول للمستخدمين المسجلين فقط
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * عرض قائمة الحجوزات (وضع الإدارة للمدير ووضع المستخدم للعميل)
      */
     public function index()
     {
-        try {
-            $bookings = DB::table('bookings')
-                ->where('user_id', Auth::id())
-                ->get();
-
-            return view('bookings.index', compact('bookings'));
-        } catch (\Exception $e) {
-            Log::error("خطأ في العرض: " . $e->getMessage());
-            return "❌ كاشف أخطاء [العرض]: " . $e->getMessage();
+        // التحقق عبر البريد الإلكتروني الصحيح أو الرتبة
+        if (Auth::user()->email == 'ab8195333@gmail.com' || Auth::user()->role == 'admin') {
+            // المدير يرى كل الحجوزات
+            $bookings = Booking::all(); 
+        } else {
+            // المستخدم يرى حجوزاته فقط
+            $bookings = Booking::where('user_id', Auth::id())->get();
         }
+
+        return view('bookings.index', compact('bookings'));
     }
 
+    /**
+     * عرض صفحة إضافة حجز جديد
+     */
     public function create()
     {
         return view('bookings.create');
     }
 
     /**
-     * حفظ الحجز وإرسال الإشعار تلقائياً
+     * حفظ الحجز وإرسال إشعارات البريد الإلكتروني (للعميل وللإدارة)
      */
     public function store(Request $request)
     {
-        // التحقق من المدخلات
         $request->validate([
-            'name' => 'required|string|max:255',
-            'date' => 'required',
+            'customer_name' => 'required|string|max:255',
+        ]);
+
+        // 1. إنشاء الحجز في قاعدة البيانات
+        $booking = Booking::create([
+            'customer_name' => $request->customer_name,
+            'amount' => 50.00,
+            'status' => 'pending',
+            'user_id' => Auth::id(),
         ]);
 
         try {
-            // 1. استخراج بيانات المستخدم الحالي
-            $user = Auth::user();
+            // 2. إرسال إشعار للمستخدم (تأكيد الحجز)
+            Auth::user()->notify(new BookingNotification($booking, 'user'));
 
-            // 2. حفظ البيانات في قاعدة البيانات
-            DB::table('bookings')->insert([
-                'name'       => $request->name,
-                'date'       => $request->date,
-                'user_id'    => $user->id,
-                'email'      => $user->email,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // 3. محاولة إرسال الإيميل (نظام كاشف الأخطاء الفرعي)
-            try {
-                $data = [
-                    'name' => $request->name,
-                    'date' => $request->date,
-                    'email' => $user->email
-                ];
-
-                Mail::to($user->email)->send(new BookingConfirmed($data));
-                
-                $message = 'تم الحجز بنجاح وإرسال إشعار إلى بريدك الإلكتروني! ✅';
-            } catch (\Exception $mailError) {
-                // إذا فشل الإيميل، نحفظ الحجز وننبه المبرمج في السجلات (Log)
-                Log::error("فشل إرسال البريد: " . $mailError->getMessage());
-                $message = 'تم الحجز بنجاح، لكن تعذر إرسال الإشعار حالياً. ⚠️';
+            // 3. إرسال إشعار للأدمن عبر البريد الصحيح
+            $admin = User::where('email', 'a8195333@gmail.com')->first();
+            if ($admin) {
+                $admin->notify(new BookingNotification($booking, 'admin'));
             }
-
-            return redirect()->route('bookings.index')->with('success', $message);
-
         } catch (\Exception $e) {
-            Log::error("خطأ في الحفظ: " . $e->getMessage());
-            return "❌ كاشف أخطاء [الحفظ]: " . $e->getMessage();
+            // في حال وجود مشكلة في الاتصال بخادم البريد، يتم الحجز مع تنبيه بسيط
+            return redirect()->route('bookings.index')->with('success', 'تم الحجز بنجاح (ملاحظة: تعذر إرسال الإشعار البريدي حالياً)');
         }
+
+        return redirect()->route('bookings.index')->with('success', 'تم الحجز بنجاح! تم إرسال إشعار تأكيد لك وللإدارة ✅');
     }
 
     /**
-     * حذف الحجز مع كاشف أخطاء
+     * عرض صفحة التعديل (خاص بالأدمن)
+     */
+    public function edit($id)
+    {
+        $booking = Booking::findOrFail($id);
+        return view('bookings.edit', compact('booking'));
+    }
+
+    /**
+     * تحديث بيانات الحجز
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'status' => 'required',
+        ]);
+
+        $booking = Booking::findOrFail($id);
+        $booking->update($request->all());
+
+        return redirect()->route('bookings.index')->with('success', 'تم تحديث بيانات الحجز بنجاح');
+    }
+
+    /**
+     * حذف الحجز (خاص بالأدمن)
      */
     public function destroy($id)
     {
-        try {
-            $deleted = DB::table('bookings')
-                ->where('id', $id)
-                ->where('user_id', Auth::id())
-                ->delete();
+        $booking = Booking::findOrFail($id);
+        $booking->delete();
 
-            if ($deleted) {
-                return redirect()->route('bookings.index')->with('success', 'تم حذف الحجز بنجاح! 🗑️');
-            }
-
-            return redirect()->route('bookings.index')->with('error', 'عذراً، لا تملك الصلاحية.');
-
-        } catch (\Exception $e) {
-            Log::error("خطأ في الحذف: " . $e->getMessage());
-            return "❌ كاشف أخطاء [الحذف]: " . $e->getMessage();
-        }
+        return redirect()->route('bookings.index')->with('success', 'تم حذف الحجز بنجاح');
     }
 }

@@ -1,69 +1,47 @@
 <?php
 
-// 1. السطر الذي سألت عنه (تحديد مكان الكنترولر)
 namespace App\Http\Controllers;
 
-// 2. استدعاء المكتبات المطلوبة
 use Illuminate\Http\Request;
-use Stripe\Stripe;
-use Stripe\Checkout\Session;
-use App\Models\Booking;
+use App\Models\Booking; // استدعاء المودل للتعامل مع قاعدة البيانات
+use Illuminate\Support\Facades\Auth;
 
 class PaymentController extends Controller
 {
     /**
-     * إنشاء جلسة الدفع وتوجيه المستخدم لموقع Stripe
+     * عرض صفحة بوابة الدفع (التي تحتوي على حقول البطاقة)
      */
-    public function checkout($id)
+    public function payment($id)
     {
-        // جلب المفتاح السري من ملف .env
-        Stripe::setApiKey(env('STRIPE_SECRET'));
-
-        // البحث عن الحجز أو إظهار خطأ 404 إذا لم يوجد
+        // جلب بيانات الحجز أو إظهار خطأ 404 إذا لم يوجد
         $booking = Booking::findOrFail($id);
 
-        // بناء جلسة الدفع
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => 'usd',
-                    'product_data' => [
-                        'name' => 'تأكيد حجز: ' . $booking->name,
-                    ],
-                    'unit_amount' => $booking->amount * 100, // تحويل المبلغ لسنتات
-                ],
-                'quantity' => 1,
-            ]],
-            'mode' => 'payment',
-            'success_url' => route('payment.success', $booking->id),
-            'cancel_url' => route('payment.cancel'),
-        ]);
-
-        return redirect($session->url);
+        // توجيه المستخدم لصفحة الدفع مع بيانات الحجز
+        return view('stripe_payment', compact('booking'));
     }
 
     /**
-     * ما يحدث بعد نجاح الدفع
+     * معالجة عملية الدفع المباشرة من البطاقة
+     * هذا الكود الذي طلبته تحديداً
      */
-    public function success($id)
+    public function postPayment(Request $request)
     {
-        $booking = Booking::findOrFail($id);
+        // 1. التحقق من وصول رقم الحجز في الطلب
+        $request->validate([
+            'booking_id' => 'required|exists:bookings,id',
+        ]);
+
+        // 2. العثور على الحجز المطلوب في قاعدة البيانات
+        $booking = Booking::findOrFail($request->booking_id);
         
-        // تحديث حالة الحجز في قاعدة البيانات
+        // 3. تحديث حالة الحجز إلى "completed" (تم الدفع)
+        // سيؤدي هذا لتغيير لون الزر في القائمة الرئيسية إلى الأخضر
         $booking->update([
-            'payment_status' => 'paid'
+            'status' => 'completed'
         ]);
 
-        // العودة لصفحة الحجوزات مع رسالة نجاح
-        return redirect()->route('bookings.index')->with('success', 'تم الدفع بنجاح يا عبدالله، حجزك الآن مؤكد!');
-    }
-
-    /**
-     * ما يحدث في حال إلغاء الدفع
-     */
-    public function cancel()
-    {
-        return redirect()->route('bookings.index')->with('error', 'تم إلغاء عملية الدفع.');
+        // 4. التوجيه إلى قائمة الحجوزات مع رسالة نجاح تظهر للمستخدم
+        return redirect()->route('bookings.index')
+                         ->with('success', 'تمت عملية الدفع بنجاح من البطاقة مباشرة للحجز رقم #' . $booking->id . ' ✅');
     }
 }

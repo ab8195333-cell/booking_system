@@ -13,6 +13,7 @@ class HomeController extends Controller
      */
     public function __construct()
     {
+        // هذا السطر يمنع أي شخص غير مسجل دخول من دخول هذه الصفحة
         $this->middleware('auth');
     }
 
@@ -23,6 +24,12 @@ class HomeController extends Controller
      */
     public function index()
     {
+        // 1. إذا كان المستخدم مدير (admin)
+        if (auth()->user()->role == 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+
+        // 2. إذا كان مستخدم عادي (user) يفتح له صفحة الـ home
         return view('home');
     }
 }

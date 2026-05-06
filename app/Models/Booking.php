@@ -10,29 +10,21 @@ class Booking extends Model
     use HasFactory;
 
     /**
-     * الجدول المرتبط بالموديل (اختياري إذا كان الاسم مطابق للمعايير)
-     */
-    protected $table = 'bookings';
-
-    /**
-     * الحقول القابلة للتعبئة (Fillable)
-     * ملاحظة: أضفنا حقول الدفع لكي يسمح Laravel بحفظ البيانات فيها
+     * الحقول التي يمكن تعبئتها وحفظها في قاعدة البيانات.
+     * تأكد أن أسماء هذه الحقول تطابق تماماً أسماء الأعمدة في جدول bookings.
      */
     protected $fillable = [
-        'name', 
-        'email', 
-        'date', 
-        'payment_status', 
-        'stripe_payment_id', 
-        'amount'
+        'customer_name', 
+        'amount', 
+        'status', 
+        'user_id'
     ];
 
     /**
-     * تحويل أنواع البيانات (Casting)
-     * يساعد في التعامل مع المبلغ كأرقام عشرية وحالة الدفع
+     * علاقة الحجز بالمستخدم: كل حجز يتبع لمستخدم واحد.
      */
-    protected $casts = [
-        'date' => 'datetime',
-        'amount' => 'decimal:2',
-    ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
